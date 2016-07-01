@@ -1,0 +1,130 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="utf-8">
+	<meta name='viewport' content='width=device-width'>
+	<title>PurePO2JSON</title>
+	<meta name="description" content="A converter to obtain JSON files from PO translation files written in pure JavaScript.">
+	<meta name="author" content="An_dz">
+	<meta name="theme-color" content="#c83838">
+	<link href="main.css" type="text/css" rel="StyleSheet" media="screen">
+	<script src="PurePO2JSON.js"></script>
+</head>
+
+<body>
+	<section class="header">
+		<h1>PurePO2JSON</h1>
+		<h2>A converter to obtain JSON files from PO translation files written in pure JS</h2>
+		<div class="button input">
+			<p>Choose file for conversion</p>
+			<input type="file" id="files" name="files">
+		</div>
+		<p id="loadedFile"></p>
+		<div class="github">
+			<a class="button" href="https://github.com/An-dz/PurePO2JSON">View on GitHub</a>
+			<a class="button" href="https://github.com/An-dz/PurePO2JSON/zipball/master">Source .zip</a>
+			<a class="button" href="https://github.com/An-dz/PurePO2JSON/tarball/master">Source .tar</a>
+		</div>
+	</section>
+
+	<section class="main">
+		<div id="converted">
+			<h3>Converted File</h3>
+			<textarea id="output"></textarea>
+		</div>
+		<h3>Instructions</h3>
+		<p>Use the latest snapshot build for testing or you might not see everything.</p>
+		<p>Download the PO file for translation from Transifex.</p>
+		<ol>
+			<li>Go to <a href="https://www.transifex.com/vivaldi-browser/vivaldi-localisation/dashboard/">https://www.transifex.com/vivaldi-browser/vivaldi-localisation/dashboard/</a></li>
+			<li>Click on your language in the list</li>
+			<li>On the following page click on the pot file</li>
+			<li>In the popup click "download to translate"</li>
+			<li>Save the file</li>
+			<li>Convert the file to JSON</li>
+		</ol>
+		<p>Load the downloaded file in this page (everything runs locally, no data sent to any server)</p>
+		<p>Save it where you can find it! (or look into the downloads folder after saving.)</p>
+		<p>"Install" the file for testing.</p>
+		<ol>
+			<li>Put the converted file into the following folder:<br>[path of the Vivaldi program]\resources\vivaldi\_locales\[your locale]</li>
+			<li>Rename the messages.json that is that folder to messages.json.original</li>
+			<li>Rename the converted file to messages.json</li>
+			<li>Restart the browser and select your language</li>
+		</ol>
+		<p>Hint: You can test your translation even if your locale folder is not yet in: Just replace the messages.json file of a language that you do not need and select that in the browser</p>
+		<h3>Thanks</h3>
+		<p>RolandReck for implementing the functions for a webpage</p>
+		<p>Cqoicebordel for adding instructions and hosting a copy</p>
+	</section>
+
+	<section class="main footer">
+		<span><a href="https://github.com/An-dz/PurePO2JSON/">PurePO2JSON</a> is maintained by <a href="https://github.com/An-dz/">André Zanghelini (An_dz)</a></span><br>
+		<span>This page is inspired on <a href="https://github.com/jasonlong/cayman-theme">Cayman theme</a> by <a href="https://github.com/jasonlong/">Jason Long</a>.</span>
+	</section>
+
+	<script>
+		function fileMsg(mesg) {
+			var error = document.getElementById("loadedFile");
+
+			error.innerText = mesg;
+			error.setAttribute("class", "error");
+		}
+
+		function handleFileSelect(evt) {
+			var files = document.getElementById('files').files;
+			if (!files.length) {
+				fileMsg('Please select a file!');
+				return;
+			}
+
+			var file = files[0];
+			// Not the best check but should be sufficient
+			if (files[0].name.search(/\.po$/i) === -1) {
+				fileMsg('Please select a .po file!');
+				files = NULL;
+				return;
+			}
+
+			var reader = new FileReader();
+			reader.onloadend = function (evt) {
+				if (evt.target.readyState === FileReader.DONE) { // DONE == 2
+					fileMsg(files[0].name);
+
+					document.getElementById('output').textContent = purePO2JSON(evt.target.result);
+					document.getElementById("converted").setAttribute("class", "completed");
+
+					// Extract file name from e.g. "for_translation_vivaldi-localisation_vivaldipot_de.po" to "de.json" for saving
+					var start = files[0].name.search(/vivaldipot/i),
+					end = files[0].name.search(/\.po$/i),
+					filename = files[0].name.substring(start + 11, end) + '.json';
+					saveTextAsFile(filename);
+				}
+				else {
+					fileMsg("ERROR: Could not load the file!")
+				}
+			};
+			reader.readAsText(file, "UTF-8");
+		}
+
+		function saveTextAsFile(fileNameToSaveAs) {
+			var textToWrite = document.getElementById("output").value;
+			var textFileAsBlob = new Blob([textToWrite], {
+					type : 'application/json'
+				});
+
+			// Create temporary link. No need to add it to the DOM
+			var downloadLink = document.createElement("a");
+			downloadLink.download = fileNameToSaveAs;
+			downloadLink.innerText = "Download File";
+			downloadLink.href = window.URL.createObjectURL(textFileAsBlob);
+			downloadLink.click();
+			// Do I need to remove the objectURL?
+		}
+
+		document.getElementById('files').addEventListener('change', handleFileSelect, false);
+	</script>
+</body>
+
+</html>
