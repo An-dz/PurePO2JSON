@@ -95,6 +95,9 @@ file = file.replace(/\n\n/g, "\n");
 // Replace last comma to closing bracket
 file = file.substring(0, file.lastIndexOf(",")) + "\n}";
 
+// Convert \n to real line breaks in msgstr
+file = file.replace(/\\n/g, "\n");
+
 // return converted string and alert
 console.log("Done, just copy the content of the page now. ;D");
 return file;
