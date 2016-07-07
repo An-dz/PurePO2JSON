@@ -33,7 +33,7 @@ while (start > -1) {
         newStr = oldStr.replace(/msgid /, "");
         s = 0;
         // We change the special characters for later manipulation
-        newStr = newStr.replace(/([A-Z(){}å\[\]—–.,;:\/\\<>\=\+*#@'\|!’%&$“”?\_\-]|\u200B| )/g, "%$1_");
+        newStr = newStr.replace(/([^a-z0-9\"])/g, "%$1_");
         // Now we get rid of the newlines which are written as \n
         // Remember that the above added a % in front of \n and an _ after \
         newStr = newStr.replace(/%\\_n/g, "_10_");
@@ -76,7 +76,7 @@ for (i = 1; i < arr.length; i++) {
     // Find first newline
     end = arr[i].search(/\n/);
     // Find spaces, special chars and uppercase in first line
-    newStr = arr[i].substring(1, end - 1).replace(/([A-Z(){}\[\].,;:\/\\<>\=\+*#@'\|!%&$“”?\_\-]| )/g, "%$1_");
+    newStr = arr[i].substring(1, end - 1).replace(/([^a-z0-9\"])/g, "%$1_");
     // Replace special chars and uppercase to char code
     s = 0;
     while (s !== -1) {
@@ -94,6 +94,9 @@ file = file.replace(/\n\n/g, "\n");
 
 // Replace last comma to closing bracket
 file = file.substring(0, file.lastIndexOf(",")) + "\n}";
+
+// Convert \n to real line breaks in msgstr
+file = file.replace(/\\n/g, "\n");
 
 // return converted string and alert
 console.log("Done, just copy the content of the page now. ;D");
