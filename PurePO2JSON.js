@@ -9,11 +9,17 @@ function purePO2JSON( file ) {
 
 // Remove useless header stuff
 file = file.replace(/msgid ""\n/, "");
-file = "{"+file.substring(file.indexOf("msgid"));
+
+var idpos = file.indexOf("msgid");
+var ctpos = file.indexOf("msgctxt");
+
+file = "{"+file.substring((ctpos < idpos)? ctpos : idpos);
 // Remove other comments
 file = file.replace(/(#.*\n|"\n")/g, "");
 // Change translation strings to JSON message
 file = file.replace(/msgstr (".*")\n/g, "    {\"message\":$1},");
+// Remove empty context
+file = file.replace(/msgctxt \n/g, "");
 
 // Change msgid so Vivaldi can understand them
 // Special and uppercase chars must be decimal unicode value
@@ -71,12 +77,12 @@ for (i = 1; i < arr.length; i++) {
 arr = file.split("msgctxt ");
 file = arr[0];
 for (i = 1; i < arr.length; i++) {
-    // Add # at begining, this will help our selector
-    arr[i] = "#" + arr[i];
+    // Add # at begining, this will help our selector, add quotes if missing
+    arr[i] = "#" + ((arr[i].charCodeAt(0) !== 34)? "\"" : "") + arr[i];
     // Find first newline
-    end = arr[i].search(/\n/);
+    end = arr[i].search(/(\")?\n/);
     // Find spaces, special chars and uppercase in first line
-    newStr = arr[i].substring(1, end - 1).replace(/([^a-z0-9\"])/g, "%$1_");
+    newStr = arr[i].substring(1, end).replace(/([^a-z0-9\"])/g, "%$1_");
     // Replace special chars and uppercase to char code
     s = 0;
     while (s !== -1) {
