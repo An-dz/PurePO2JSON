@@ -20,6 +20,7 @@
 			<p>Choose file for conversion</p>
 			<input type="file" id="files" name="files">
 		</div>
+		<div title="Checked this option will generate an optimised but less human readable file"><input type="checkbox" checked id="minify"><label for="minify">Minify file</label></div>
 		<p id="loadedFile"></p>
 		<div class="github">
 			<a class="button" href="https://github.com/An-dz/PurePO2JSON">View on GitHub</a>
@@ -92,7 +93,7 @@
 				if (evt.target.readyState === FileReader.DONE) { // DONE == 2
 					fileMsg(files[0].name);
 
-					document.getElementById('output').textContent = purePO2JSON(evt.target.result);
+					document.getElementById('output').textContent = purePO2JSON(evt.target.result, document.getElementById("minify").checked);
 					document.getElementById("converted").setAttribute("class", "completed");
 
 					// Extract file name from e.g. "for_translation_vivaldi-localisation_vivaldipot_de.po" to "de.json" for saving

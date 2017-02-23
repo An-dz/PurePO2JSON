@@ -42,7 +42,7 @@ h3 {
 .input p {
 	margin: 10px 15px;
 }
-input {
+input[type=file] {
 	cursor: pointer;
 	position: absolute;
 	top: 0;
