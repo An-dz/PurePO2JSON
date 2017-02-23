@@ -1,110 +1,144 @@
 /*
- * PurePO2JSON v1.4
+ * PurePO2JSON v2.0
  * by André Zanghelini (An_dz)
  *
- * with modifications by Roland Reck (QuHno) to work with a web page, added some missing "," and "="
+ * with previous contributions by Roland Reck (QuHno)
  */
 
-function purePO2JSON( file ) {
+function specialChars(match, linefeed, special) {
+    "use strict";
+    // get rid of new lines
+    if (linefeed === "n") {
+        return "_10_";
+    }
+    if (linefeed === "r") {
+        return "_13_";
+    }
+    // convert special chars to their code
+    if (special !== undefined) {
+        return "_" + match.charCodeAt(0) + "_";
+    }
+}
 
-// Remove useless header stuff
-file = file.replace(/msgid ""\n/, "");
+function purePO2JSON(file, minify) {
+    "use strict";
+    // Check line feed
+    var lf = file.match(/(\r\n)|(\n)|(\r)/);
+    lf = lf[1] || lf[2] || lf[3];
+    file = file.split(lf);
 
-var idpos = file.indexOf("msgid");
-var ctpos = file.indexOf("msgctxt");
+    var space = " ";
+    var tab = "\t";
+    if (minify === true) {
+        lf = "";
+        space = "";
+        tab = "";
+    }
 
-file = "{"+file.substring((ctpos < idpos)? ctpos : idpos);
-// Remove other comments
-file = file.replace(/(#.*\n|"\n")/g, "");
-// Change translation strings to JSON message
-file = file.replace(/msgstr (".*")\n/g, "    {\"message\":$1},");
-// Remove empty context
-file = file.replace(/msgctxt \n/g, "");
+    var msgid = false;
+    var msgstr = false;
+    var msgctxt = "";
+    var newFile = ["{"];
+    var msg;
+    var ignoreline = null;
 
-// Change msgid so Vivaldi can understand them
-// Special and uppercase chars must be decimal unicode value
-var start = 0,
-    end = 0,
-    i = 0,
-    oldStr ='',
-    newStr = '',
-    s,
-    tempStr = file;
-// While we still find "msgid "
-while (start > -1) {
-    start = tempStr.search(/msgid /);
-    if (start > -1) {
-        end = start + tempStr.substr(start).search(/\n/);
-        oldStr = tempStr.substring(start, end);
-        newStr = oldStr.replace(/msgid /, "");
-        s = 0;
-        // We change the special characters for later manipulation
-        newStr = newStr.replace(/([^a-z0-9\"])/g, "%$1_");
-        // Now we get rid of the newlines which are written as \n
-        // Remember that the above added a % in front of \n and an _ after \
-        newStr = newStr.replace(/%\\_n/g, "_10_");
-        // Add 0 at end of string name and : at end of string
-        newStr = newStr.replace(/(.)"/, "$10\":");
-        // Replace special chars and uppercase to char code
-        while (s !== -1) {
-            s = newStr.search(/%/);
-            if (s > -1)
-                newStr = newStr.replace(/%./, "_" + newStr.charCodeAt(s + 1));
+    file.forEach(function choose(line) {
+        // if the line has any text and does not begin with '#' (comment)
+        if (line.length > 0 && line.charCodeAt(0) !== 35) {
+            msg = line.match(/msg((id)(_plural)?|(str)(\[(\d)\])?|(ctxt))\s"(.*)"$/);
+
+            // First msgid found, start ignoring all lines
+            if (ignoreline === null && msg[2] !== undefined) {
+                ignoreline = true;
+                return;
+            }
+            // Ignore all lines while msg* is not match
+            if (ignoreline === true && (msg === null || msg[4])) {
+                return;
+            }
+            ignoreline = false;
+
+            // Just append strings to either msgid or msgstr
+            if (msg === null) {
+                msg = line.substring(1, line.length - 1);
+                if (msgid !== false) {
+                    msgid += msg;
+                } else {
+                    msgstr += msg;
+                }
+                return;
+            }
+
+            // msgstr[*]
+            if (msg[6]) {
+                line = "\"" + msgctxt + msg[6] + "\":" + space + "{";
+
+                if (msg[6] !== "0") {
+                    line = tab + "\"message\":" + space + "\"" + msgstr.replace(/\\n/g, "\n") + "\"" + lf + "}," + lf + line;
+                }
+
+                msgstr = msg[8];
+            }
+
+            // msgstr or msgid_plural
+            else if (msg[4] || msg[3]) {
+                // commit msgid
+                if (msgctxt.length > 0) {
+                    // context and id are separated by _4_
+                    msgctxt = msgctxt.replace(/\\(n|r)|([^a-z0-9"])/g, specialChars) + "_4_";
+                }
+                // We change the special characters
+                msgid = msgid.replace(/\\(n|r)|([^a-z0-9"])/g, specialChars);
+                msgctxt = msgctxt + msgid;
+
+                // msgid_plural
+                if (msg[3]) {
+                    return;
+                }
+
+                line = "\"" + msgctxt + "0\":" + space + "{";
+                msgstr = msg[8];
+                msgid = false;
+                msgctxt = "";
+            }
+
+            // msgid
+            else if (msg[2]) {
+                msgid = msg[8];
+                if (msgstr) {
+                    // commit msgstr
+                    // Convert literal \n to real line breaks in msgstr
+                    line = tab + "\"message\":" + space + "\"" + msgstr.replace(/\\n/g, "\n") + "\"" + lf + "},";
+                    msgstr = false;
+                } else {
+                    return;
+                }
+            }
+
+            // msgctxt
+            else if (msg[7]) {
+                msgctxt = msg[8];
+                // In case it's the first one
+                if (msgstr === false) {
+                    return;
+                }
+                // commit msgstr
+                // Convert literal \n to real line breaks in msgstr
+                line = tab + "\"message\":" + space + "\"" + msgstr.replace(/\\n/g, "\n") + "\"" + lf + "},";
+                msgstr = false;
+            }
+
+            // add line to file
+            newFile.push(line);
         }
+    });
 
-        file = file.replace(oldStr, newStr);
-        // Just search where we did not search before
-        tempStr = tempStr.substr(end + 1);
-    }
-}
+    // The last one is not commited
+    newFile.push(tab + "\"message\":" + space + "\"" + msgstr.replace(/\\n/g, "\n") + "\"" + lf + "}");
+    newFile.push("}");
 
-// Replace plurals, start copying msgid
-var arr = file.split("\nmsgid_plural"),
-    msgid;
-file = arr[0];
-for (i = 1; i < arr.length; i++) {
-    // Take msgid from previous part
-    msgid = arr[i - 1].substring(arr[i - 1].lastIndexOf("\n\"") + 1, arr[i - 1].lastIndexOf(":") - 2);
-    // remove msgid_plural and replace msgstr[0] in current part
-    arr[i] = arr[i].replace(/.*\nmsgstr\[0\] (".*")/, "\n    {\"message\":$1},");
-    // Replace other variations
-    arr[i] = arr[i].replace(/msgstr\[(\d+)\] (".*")/g, msgid + "$1\":\n    {\"message\":$2},");
-    // Join again to main
-    file = file.concat(arr[i]);
-}
+    console.log("All done, just copy the content of the page now. ;D");
 
-// Add msgctxt string
-arr = file.split("msgctxt ");
-file = arr[0];
-for (i = 1; i < arr.length; i++) {
-    // Add # at begining, this will help our selector, add quotes if missing
-    arr[i] = "#" + ((arr[i].charCodeAt(0) !== 34)? "\"" : "") + arr[i];
-    // Find first newline
-    end = arr[i].search(/(\")?\n/);
-    // Find spaces, special chars and uppercase in first line
-    newStr = arr[i].substring(1, end).replace(/([^a-z0-9\"])/g, "%$1_");
-    // Replace special chars and uppercase to char code
-    s = 0;
-    while (s !== -1) {
-        s = newStr.search(/%/);
-        if (s > -1)
-            newStr = newStr.replace(/%./, "_" + newStr.charCodeAt(s + 1));
-    }
-    arr[i] = arr[i].replace(/#.*\n"/, newStr + "_4_");
-    // arr[i] = arr[i].replace(/"\n"/, "_4_")
-    file = file.concat(arr[i]);
-}
-
-// Remove double newline
-file = file.replace(/\n\n/g, "\n");
-
-// Replace last comma to closing bracket
-file = file.substring(0, file.lastIndexOf(",")) + "\n}";
-
-// Convert \n to real line breaks in msgstr
-file = file.replace(/\\n/g, "\n");
-
-// return converted string and alert
-console.log("Done, just copy the content of the page now. ;D");
-return file;
+    // Join all lines again with the original line feed
+    return newFile.join(lf);
 }
