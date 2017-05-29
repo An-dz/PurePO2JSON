@@ -1,5 +1,5 @@
 /*
- * PurePO2JSON v2.0
+ * PurePO2JSON v2.0.1
  * by André Zanghelini (An_dz)
  *
  * with previous contributions by Roland Reck (QuHno)
@@ -85,10 +85,10 @@ function purePO2JSON(file, minify) {
                 // commit msgid
                 if (msgctxt.length > 0) {
                     // context and id are separated by _4_
-                    msgctxt = msgctxt.replace(/\\(n|r)|([^a-z0-9"])/g, specialChars) + "_4_";
+                    msgctxt = msgctxt.replace(/\\(n|r)|([^a-z0-9])/g, specialChars) + "_4_";
                 }
                 // We change the special characters
-                msgid = msgid.replace(/\\(n|r)|([^a-z0-9"])/g, specialChars);
+                msgid = msgid.replace(/\\(n|r)|([^a-z0-9])/g, specialChars);
                 msgctxt = msgctxt + msgid;
 
                 // msgid_plural
