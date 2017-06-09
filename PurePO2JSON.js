@@ -45,6 +45,17 @@ function purePO2JSON(file, minify) {
     file.forEach(function choose(line) {
         // if the line has any text and does not begin with '#' (comment)
         if (line.length > 0 && line.charCodeAt(0) !== 35) {
+            /* RegExp IDs and their meanings:
+             0: msg*
+             1: anything after msg
+             2: msgid
+             3: msgid_plural
+             4: msgstr
+             5: msgstr[]
+             6: number in msgstr[#]
+             7: msgctxt
+             8: the text
+             */
             msg = line.match(/msg((id)(_plural)?|(str)(\[(\d)\])?|(ctxt))\s"(.*)"$/);
 
             // First msgid found, start ignoring all lines
@@ -110,6 +121,7 @@ function purePO2JSON(file, minify) {
                     // Convert literal \n to real line breaks in msgstr
                     line = tab + "\"message\":" + space + "\"" + msgstr.replace(/\\n/g, "\n") + "\"" + lf + "},";
                     msgstr = false;
+                    msgctxt = "";
                 } else {
                     return;
                 }
