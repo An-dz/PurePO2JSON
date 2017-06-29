@@ -80,8 +80,29 @@ function purePO2JSON(file, minify) {
                 return;
             }
 
+            // msgid_plural
+            if (msg[3]) {
+                return;
+            }
+
             // msgstr[*]
-            if (msg[6]) {
+            else if (msg[6]) {
+                if (msg[8].length < 1) {
+                    msgstr = false;
+                    return;
+                }
+
+                if (msg[6] === "0") {
+                    // commit msgid
+                    if (msgctxt.length > 0) {
+                        // context and id are separated by _4_
+                        msgctxt = msgctxt.replace(/\\(n|r)|([^a-z0-9])/g, specialChars) + "_4_";
+                    }
+                    // We change the special characters
+                    msgid = msgid.replace(/\\(n|r)|([^a-z0-9])/g, specialChars);
+                    msgctxt = msgctxt + msgid;
+                }
+
                 line = "\"" + msgctxt + msg[6] + "\":" + space + "{";
 
                 if (msg[6] !== "0") {
@@ -91,8 +112,13 @@ function purePO2JSON(file, minify) {
                 msgstr = msg[8];
             }
 
-            // msgstr or msgid_plural
-            else if (msg[4] || msg[3]) {
+            // msgstr
+            else if (msg[4]) {
+                if (msg[8].length < 1) {
+                    msgstr = false;
+                    return;
+                }
+
                 // commit msgid
                 if (msgctxt.length > 0) {
                     // context and id are separated by _4_
@@ -101,11 +127,6 @@ function purePO2JSON(file, minify) {
                 // We change the special characters
                 msgid = msgid.replace(/\\(n|r)|([^a-z0-9])/g, specialChars);
                 msgctxt = msgctxt + msgid;
-
-                // msgid_plural
-                if (msg[3]) {
-                    return;
-                }
 
                 line = "\"" + msgctxt + "0\":" + space + "{";
                 msgstr = msg[8];
@@ -131,13 +152,14 @@ function purePO2JSON(file, minify) {
             else if (msg[7]) {
                 msgctxt = msg[8];
                 // In case it's the first one
-                if (msgstr === false) {
+                if (msgstr) {
+                    // commit msgstr
+                    // Convert literal \n to real line breaks in msgstr
+                    line = tab + "\"message\":" + space + "\"" + msgstr.replace(/\\n/g, "\n") + "\"" + lf + "},";
+                    msgstr = false;
+                } else {
                     return;
                 }
-                // commit msgstr
-                // Convert literal \n to real line breaks in msgstr
-                line = tab + "\"message\":" + space + "\"" + msgstr.replace(/\\n/g, "\n") + "\"" + lf + "},";
-                msgstr = false;
             }
 
             // add line to file
@@ -146,7 +168,12 @@ function purePO2JSON(file, minify) {
     });
 
     // The last one is not commited
-    newFile.push(tab + "\"message\":" + space + "\"" + msgstr.replace(/\\n/g, "\n") + "\"" + lf + "}");
+    if (msgstr) {
+        newFile.push(tab + "\"message\":" + space + "\"" + msgstr.replace(/\\n/g, "\n") + "\"" + lf + "}");
+    } else {
+        var l = newFile.length - 1;
+        newFile[l] = newFile[l].substr(0, newFile[l].length - 1);
+    }
     newFile.push("}");
 
     console.log("All done, just copy the content of the page now. ;D");
