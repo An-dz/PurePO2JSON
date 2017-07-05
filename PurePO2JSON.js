@@ -1,5 +1,5 @@
 /*
- * PurePO2JSON v2.0.1
+ * PurePO2JSON v2.0.4
  * by André Zanghelini (An_dz)
  *
  * with previous contributions by Roland Reck (QuHno)
@@ -41,6 +41,7 @@ function purePO2JSON(file, minify) {
     var newFile = ["{"];
     var msg;
     var ignoreline = null;
+    var empty = false;
 
     file.forEach(function choose(line) {
         // if the line has any text and does not begin with '#' (comment)
@@ -71,6 +72,7 @@ function purePO2JSON(file, minify) {
 
             // Just append strings to either msgid or msgstr
             if (msg === null) {
+                empty = false;
                 msg = line.substring(1, line.length - 1);
                 if (msgid !== false) {
                     msgid += msg;
@@ -88,8 +90,7 @@ function purePO2JSON(file, minify) {
             // msgstr[*]
             else if (msg[6]) {
                 if (msg[8].length < 1) {
-                    msgstr = false;
-                    return;
+                    empty = true;
                 }
 
                 if (msg[6] === "0") {
@@ -115,8 +116,7 @@ function purePO2JSON(file, minify) {
             // msgstr
             else if (msg[4]) {
                 if (msg[8].length < 1) {
-                    msgstr = false;
-                    return;
+                    empty = true;
                 }
 
                 // commit msgid
@@ -137,7 +137,13 @@ function purePO2JSON(file, minify) {
             // msgid
             else if (msg[2]) {
                 msgid = msg[8];
-                if (msgstr) {
+                if (msgstr !== false) {
+                    if (empty === true) {
+                        newFile.pop();
+                        msgstr = false;
+                        empty = false;
+                        return;
+                    }
                     // commit msgstr
                     // Convert literal \n to real line breaks in msgstr
                     line = tab + "\"message\":" + space + "\"" + msgstr.replace(/\\n/g, "\n") + "\"" + lf + "},";
@@ -152,7 +158,13 @@ function purePO2JSON(file, minify) {
             else if (msg[7]) {
                 msgctxt = msg[8];
                 // In case it's the first one
-                if (msgstr) {
+                if (msgstr !== false) {
+                    if (empty === true) {
+                        newFile.pop();
+                        msgstr = false;
+                        empty = false;
+                        return;
+                    }
                     // commit msgstr
                     // Convert literal \n to real line breaks in msgstr
                     line = tab + "\"message\":" + space + "\"" + msgstr.replace(/\\n/g, "\n") + "\"" + lf + "},";
@@ -176,7 +188,7 @@ function purePO2JSON(file, minify) {
     }
     newFile.push("}");
 
-    console.log("All done, just copy the content of the page now. ;D");
+    console.info("All done, just copy the content of the page now. ;D");
 
     // Join all lines again with the original line feed
     return newFile.join(lf);
