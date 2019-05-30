@@ -66,69 +66,71 @@
 	</section>
 
 	<script>
-		function fileMsg(mesg) {
-			var error = document.getElementById("loadedFile");
+"use strict";
 
-			error.innerText = mesg;
-			error.setAttribute("class", "error");
-		}
+function fileMsg(mesg) {
+	const error = document.getElementById("loadedFile");
 
-		function handleFileSelect(evt) {
-			var files = document.getElementById('files').files;
-			if (!files.length) {
-				fileMsg('Please select a file!');
-				return;
+	error.innerText = mesg;
+	error.setAttribute("class", "error");
+}
+
+function saveTextAsFile(fileNameToSaveAs) {
+	const textToWrite = document.getElementById("output").value;
+	const textFileAsBlob = new Blob([textToWrite], {
+		type : "application/json"
+	});
+
+	// Create temporary link. No need to add it to the DOM
+	const downloadLink = document.createElement("a");
+	downloadLink.download = fileNameToSaveAs;
+	downloadLink.innerText = "Download File";
+	downloadLink.href = window.URL.createObjectURL(textFileAsBlob);
+	downloadLink.click();
+	// Do I need to remove the objectURL?
+}
+
+function handleFileSelect() {
+	let files = document.getElementById("files").files;
+	if (!files.length) {
+		fileMsg("Please select a file!");
+		return;
+	}
+
+	const file = files[0];
+	// Not the best check but should be sufficient
+	if (files[0].name.search(/\.po$/i) === -1) {
+		fileMsg("Please select a .po file!");
+		files = null;
+		return;
+	}
+
+	const reader = new FileReader();
+	reader.onloadend = function (evt) {
+		if (evt.target.readyState === FileReader.DONE) { // DONE == 2
+			fileMsg(files[0].name);
+
+			document.getElementById("output").textContent = purePO2JSON(evt.target.result, document.getElementById("minify").checked, true);
+			document.getElementById("converted").setAttribute("class", "completed");
+
+			// Extract file name from e.g. "for_translation_vivaldi-localisation_vivaldipot_de.po" to "de.json" for saving
+			const start = files[0].name.search(/pot_|ser-/i);
+			const end = files[0].name.search(/\.po$/i);
+			let filename = files[0].name;
+			if (start !== -1) {
+				filename = filename.substring(start + 4, end);
 			}
-
-			var file = files[0];
-			// Not the best check but should be sufficient
-			if (files[0].name.search(/\.po$/i) === -1) {
-				fileMsg('Please select a .po file!');
-				files = null;
-				return;
-			}
-
-			var reader = new FileReader();
-			reader.onloadend = function (evt) {
-				if (evt.target.readyState === FileReader.DONE) { // DONE == 2
-					fileMsg(files[0].name);
-
-					document.getElementById('output').textContent = purePO2JSON(evt.target.result, document.getElementById("minify").checked);
-					document.getElementById("converted").setAttribute("class", "completed");
-
-					// Extract file name from e.g. "for_translation_vivaldi-localisation_vivaldipot_de.po" to "de.json" for saving
-					var start = files[0].name.search(/pot_|ser-/i),
-					end = files[0].name.search(/\.po$/i),
-					filename = files[0].name;
-					if (start !== -1) {
-						filename = filename.substring(start + 4, end);
-					}
-					filename = 'messages.' + filename + '.json';
-					saveTextAsFile(filename);
-				}
-				else {
-					fileMsg("ERROR: Could not load the file!")
-				}
-			};
-			reader.readAsText(file, "UTF-8");
+			filename = `messages.${filename}.json`;
+			saveTextAsFile(filename);
 		}
-
-		function saveTextAsFile(fileNameToSaveAs) {
-			var textToWrite = document.getElementById("output").value;
-			var textFileAsBlob = new Blob([textToWrite], {
-					type : 'application/json'
-				});
-
-			// Create temporary link. No need to add it to the DOM
-			var downloadLink = document.createElement("a");
-			downloadLink.download = fileNameToSaveAs;
-			downloadLink.innerText = "Download File";
-			downloadLink.href = window.URL.createObjectURL(textFileAsBlob);
-			downloadLink.click();
-			// Do I need to remove the objectURL?
+		else {
+			fileMsg("ERROR: Could not load the file!");
 		}
+	};
+	reader.readAsText(file, "UTF-8");
+}
 
-		document.getElementById('files').addEventListener('change', handleFileSelect, false);
+document.getElementById("files").addEventListener("change", handleFileSelect, false);
 	</script>
 </body>
 
