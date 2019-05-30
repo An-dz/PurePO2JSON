@@ -4,9 +4,9 @@
  *
  * with previous contributions by Roland Reck (QuHno)
  */
+"use strict";
 
 function specialChars(match, linefeed, special) {
-    "use strict";
     // get rid of new lines
     if (linefeed === "n") {
         return "_10_";
@@ -21,7 +21,6 @@ function specialChars(match, linefeed, special) {
 }
 
 function purePO2JSON(file, minify) {
-    "use strict";
     // Check line feed
     var lf = file.match(/(\r\n)|(\n)|(\r)/);
     lf = lf[1] || lf[2] || lf[3];
