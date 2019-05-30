@@ -1,12 +1,12 @@
 /*
- * PurePO2JSON v2.0.4
+ * PurePO2JSON v2.1.0
  * by André Zanghelini (An_dz)
  *
  * with previous contributions by Roland Reck (QuHno)
  */
+"use strict";
 
 function specialChars(match, linefeed, special) {
-    "use strict";
     // get rid of new lines
     if (linefeed === "n") {
         return "_10_";
@@ -18,30 +18,51 @@ function specialChars(match, linefeed, special) {
     if (special !== undefined) {
         return "_" + match.charCodeAt(0) + "_";
     }
+    return match;
 }
 
-function purePO2JSON(file, minify) {
-    "use strict";
+/**
+ * @brief Gets a PO file and converts to JSON
+ *
+ * Gets a PO file as a `String` and returns a `String`
+ * with the contents of a JSON file.
+ *
+ * @param[in] file    {String}  The PO file to convert
+ * @param[in] minify  {Boolean} If the result must be minified (optional)
+ * @param[in] ibmi18n {Boolean} If the result expands strings to match W3C
+ * Internationalisation guideline. @see https://www.w3.org/International/articles/article-text-size
+ *
+ * @return {String} JSON file
+ *
+ * @info The W3C formula comes from a simplification of the following formula:  
+ * X = (((3 * ln(length) + 0.7) * length) - length)  
+ * Where:  
+ * p = (300 * ln(length) + 70) <-- This returns the percentage of expansion  
+ * p = (  3 * ln(length) + 0.7) <-- This returns the same but divided by 100  
+ * e = (p * length) <-- This returns the final expanded length  
+ * f = (e - length) <-- This returns the amount of chars to add
+ */
+function purePO2JSON(file, minify, ibmi18n) {
     // Check line feed
-    var lf = file.match(/(\r\n)|(\n)|(\r)/);
+    let lf = file.match(/(\r\n)|(\n)|(\r)/);
     lf = lf[1] || lf[2] || lf[3];
     file = file.split(lf);
 
-    var space = " ";
-    var tab = "\t";
+    let space = " ";
+    let tab = "\t";
     if (minify === true) {
         lf = "";
         space = "";
         tab = "";
     }
 
-    var msgid = false;
-    var msgstr = false;
-    var msgctxt = "";
-    var newFile = ["{"];
-    var msg;
-    var ignoreline = null;
-    var empty = false;
+    let msgid = false;
+    let msgstr = false;
+    let msgctxt = "";
+    let msg;
+    let ignoreline = null;
+    let empty = false;
+    const newFile = ["{"];
 
     file.forEach(function choose(line) {
         // if the line has any text and does not begin with '#' (comment)
@@ -88,7 +109,7 @@ function purePO2JSON(file, minify) {
             }
 
             // msgstr[*]
-            else if (msg[6]) {
+            if (msg[6]) {
                 if (msg[8].length < 1) {
                     empty = true;
                 }
@@ -101,12 +122,16 @@ function purePO2JSON(file, minify) {
                     }
                     // We change the special characters
                     msgid = msgid.replace(/\\(n|r)|([^a-z0-9])/g, specialChars);
-                    msgctxt = msgctxt + msgid;
+                    msgctxt += msgid;
                 }
 
                 line = "\"" + msgctxt + msg[6] + "\":" + space + "{";
 
                 if (msg[6] !== "0") {
+                    if (ibmi18n === true) {
+                        msgstr = `${msgstr}${"-".repeat((3 / Math.log(msgstr.length) + 0.7) * msgstr.length - msgstr.length)}`;
+                    }
+
                     line = tab + "\"message\":" + space + "\"" + msgstr.replace(/\\n/g, "\n") + "\"" + lf + "}," + lf + line;
                 }
 
@@ -126,7 +151,7 @@ function purePO2JSON(file, minify) {
                 }
                 // We change the special characters
                 msgid = msgid.replace(/\\(n|r)|([^a-z0-9])/g, specialChars);
-                msgctxt = msgctxt + msgid;
+                msgctxt += msgid;
 
                 line = "\"" + msgctxt + "0\":" + space + "{";
                 msgstr = msg[8];
@@ -146,6 +171,10 @@ function purePO2JSON(file, minify) {
                     }
                     // commit msgstr
                     // Convert literal \n to real line breaks in msgstr
+                    if (ibmi18n === true) {
+                        msgstr = `${msgstr}${"-".repeat((3 / Math.log(msgstr.length) + 0.7) * msgstr.length - msgstr.length)}`;
+                    }
+
                     line = tab + "\"message\":" + space + "\"" + msgstr.replace(/\\n/g, "\n") + "\"" + lf + "},";
                     msgstr = false;
                     msgctxt = "";
@@ -167,6 +196,10 @@ function purePO2JSON(file, minify) {
                     }
                     // commit msgstr
                     // Convert literal \n to real line breaks in msgstr
+                    if (ibmi18n === true) {
+                        msgstr = `${msgstr}${"-".repeat((3 / Math.log(msgstr.length) + 0.7) * msgstr.length - msgstr.length)}`;
+                    }
+
                     line = tab + "\"message\":" + space + "\"" + msgstr.replace(/\\n/g, "\n") + "\"" + lf + "},";
                     msgstr = false;
                 } else {
@@ -183,7 +216,7 @@ function purePO2JSON(file, minify) {
     if (msgstr) {
         newFile.push(tab + "\"message\":" + space + "\"" + msgstr.replace(/\\n/g, "\n") + "\"" + lf + "}");
     } else {
-        var l = newFile.length - 1;
+        const l = newFile.length - 1;
         newFile[l] = newFile[l].substr(0, newFile[l].length - 1);
     }
     newFile.push("}");
