@@ -3,6 +3,7 @@
  * by André Zanghelini (An_dz)
  *
  * with previous contributions by Roland Reck (QuHno)
+ * IBM i18n idea and formula from Roland Reck (QuHno)
  */
 "use strict";
 
