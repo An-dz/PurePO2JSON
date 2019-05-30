@@ -1,5 +1,5 @@
 /*
- * PurePO2JSON v2.0.4
+ * PurePO2JSON v2.1.0
  * by André Zanghelini (An_dz)
  *
  * with previous contributions by Roland Reck (QuHno)
@@ -21,7 +21,28 @@ function specialChars(match, linefeed, special) {
     return match;
 }
 
-function purePO2JSON(file, minify) {
+/**
+ * @brief Gets a PO file and converts to JSON
+ *
+ * Gets a PO file as a `String` and returns a `String`
+ * with the contents of a JSON file.
+ *
+ * @param[in] file    {String}  The PO file to convert
+ * @param[in] minify  {Boolean} If the result must be minified (optional)
+ * @param[in] ibmi18n {Boolean} If the result expands strings to match W3C
+ * Internationalisation guideline. @see https://www.w3.org/International/articles/article-text-size
+ *
+ * @return {String} JSON file
+ *
+ * @info The W3C formula comes from a simplification of the following formula:  
+ * X = (((3 * ln(length) + 0.7) * length) - length)  
+ * Where:  
+ * p = (300 * ln(length) + 70) <-- This returns the percentage of expansion  
+ * p = (  3 * ln(length) + 0.7) <-- This returns the same but divided by 100  
+ * e = (p * length) <-- This returns the final expanded length  
+ * f = (e - length) <-- This returns the amount of chars to add
+ */
+function purePO2JSON(file, minify, ibmi18n) {
     // Check line feed
     let lf = file.match(/(\r\n)|(\n)|(\r)/);
     lf = lf[1] || lf[2] || lf[3];
@@ -107,6 +128,10 @@ function purePO2JSON(file, minify) {
                 line = "\"" + msgctxt + msg[6] + "\":" + space + "{";
 
                 if (msg[6] !== "0") {
+                    if (ibmi18n === true) {
+                        msgstr = `${msgstr}${"-".repeat((3 / Math.log(msgstr.length) + 0.7) * msgstr.length - msgstr.length)}`;
+                    }
+
                     line = tab + "\"message\":" + space + "\"" + msgstr.replace(/\\n/g, "\n") + "\"" + lf + "}," + lf + line;
                 }
 
@@ -146,6 +171,10 @@ function purePO2JSON(file, minify) {
                     }
                     // commit msgstr
                     // Convert literal \n to real line breaks in msgstr
+                    if (ibmi18n === true) {
+                        msgstr = `${msgstr}${"-".repeat((3 / Math.log(msgstr.length) + 0.7) * msgstr.length - msgstr.length)}`;
+                    }
+
                     line = tab + "\"message\":" + space + "\"" + msgstr.replace(/\\n/g, "\n") + "\"" + lf + "},";
                     msgstr = false;
                     msgctxt = "";
@@ -167,6 +196,10 @@ function purePO2JSON(file, minify) {
                     }
                     // commit msgstr
                     // Convert literal \n to real line breaks in msgstr
+                    if (ibmi18n === true) {
+                        msgstr = `${msgstr}${"-".repeat((3 / Math.log(msgstr.length) + 0.7) * msgstr.length - msgstr.length)}`;
+                    }
+
                     line = tab + "\"message\":" + space + "\"" + msgstr.replace(/\\n/g, "\n") + "\"" + lf + "},";
                     msgstr = false;
                 } else {
