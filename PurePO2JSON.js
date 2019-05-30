@@ -18,29 +18,30 @@ function specialChars(match, linefeed, special) {
     if (special !== undefined) {
         return "_" + match.charCodeAt(0) + "_";
     }
+    return match;
 }
 
 function purePO2JSON(file, minify) {
     // Check line feed
-    var lf = file.match(/(\r\n)|(\n)|(\r)/);
+    let lf = file.match(/(\r\n)|(\n)|(\r)/);
     lf = lf[1] || lf[2] || lf[3];
     file = file.split(lf);
 
-    var space = " ";
-    var tab = "\t";
+    let space = " ";
+    let tab = "\t";
     if (minify === true) {
         lf = "";
         space = "";
         tab = "";
     }
 
-    var msgid = false;
-    var msgstr = false;
-    var msgctxt = "";
-    var newFile = ["{"];
-    var msg;
-    var ignoreline = null;
-    var empty = false;
+    let msgid = false;
+    let msgstr = false;
+    let msgctxt = "";
+    let msg;
+    let ignoreline = null;
+    let empty = false;
+    const newFile = ["{"];
 
     file.forEach(function choose(line) {
         // if the line has any text and does not begin with '#' (comment)
@@ -87,7 +88,7 @@ function purePO2JSON(file, minify) {
             }
 
             // msgstr[*]
-            else if (msg[6]) {
+            if (msg[6]) {
                 if (msg[8].length < 1) {
                     empty = true;
                 }
@@ -100,7 +101,7 @@ function purePO2JSON(file, minify) {
                     }
                     // We change the special characters
                     msgid = msgid.replace(/\\(n|r)|([^a-z0-9])/g, specialChars);
-                    msgctxt = msgctxt + msgid;
+                    msgctxt += msgid;
                 }
 
                 line = "\"" + msgctxt + msg[6] + "\":" + space + "{";
@@ -125,7 +126,7 @@ function purePO2JSON(file, minify) {
                 }
                 // We change the special characters
                 msgid = msgid.replace(/\\(n|r)|([^a-z0-9])/g, specialChars);
-                msgctxt = msgctxt + msgid;
+                msgctxt += msgid;
 
                 line = "\"" + msgctxt + "0\":" + space + "{";
                 msgstr = msg[8];
@@ -182,7 +183,7 @@ function purePO2JSON(file, minify) {
     if (msgstr) {
         newFile.push(tab + "\"message\":" + space + "\"" + msgstr.replace(/\\n/g, "\n") + "\"" + lf + "}");
     } else {
-        var l = newFile.length - 1;
+        const l = newFile.length - 1;
         newFile[l] = newFile[l].substr(0, newFile[l].length - 1);
     }
     newFile.push("}");
