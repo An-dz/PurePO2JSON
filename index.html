@@ -17,10 +17,13 @@
 		<h1>PurePO2JSON</h1>
 		<h2>A converter to obtain JSON files from PO translation files written in pure JS</h2>
 		<div class="button input">
-			<p>Choose file for conversion</p>
+			<p>Choose or drop file here</p>
 			<input type="file" id="files" name="files">
 		</div>
-		<div title="Checked, this option will generate an optimised but less human readable file"><input type="checkbox" checked id="minify"><label for="minify">Minify file</label></div>
+		<div>
+			<span title="Generate an optimised but less human readable file"><input type="checkbox" checked id="minify"><label for="minify">Minify file</label></span>
+			<span title="Expand strings according to IBM guidelines (see explanation below)"><input type="checkbox" id="ibm"><label for="ibm">W3C/IBM safe size</label></span>
+		</div>
 		<p id="loadedFile"></p>
 		<div class="github">
 			<a class="button" href="https://github.com/An-dz/PurePO2JSON">View on GitHub</a>
@@ -55,8 +58,12 @@
 			<li>Restart the browser and select your language</li>
 		</ol>
 		<p>Hint: You can test your translation even if your locale folder is not yet in: Just replace the messages.json file of a language that you do not need and select that in the browser</p>
+		<h3>W3C/IBM Safe Size</h3>
+		<p>W3C <a href="https://www.w3.org/International/articles/article-text-size">has a document</a> describing guidelines on how to create an UI that works for different languages.</p>
+		<p>In this document they point to a guideline table created by IBM showing the expected character expansion from English sentences/words to cover the maximum amount of languages.</p>
+		<p>By checking the checkbox above the translation strings will be expanded with hyphens to matching the expansions on the IBM table.</p>
 		<h3>Thanks</h3>
-		<p>RolandReck for implementing the functions for a webpage</p>
+		<p>Roland Reck (QuHno) for implementing the functions for a webpage and suggestion and initial algorithm of the W3C/IBM guideline</p>
 		<p>Cqoicebordel for adding instructions and hosting a copy</p>
 	</section>
 
@@ -110,7 +117,11 @@ function handleFileSelect() {
 		if (evt.target.readyState === FileReader.DONE) { // DONE == 2
 			fileMsg(files[0].name);
 
-			document.getElementById("output").textContent = purePO2JSON(evt.target.result, document.getElementById("minify").checked, false);
+			document.getElementById("output").textContent = purePO2JSON(
+				evt.target.result,
+				document.getElementById("minify").checked,
+				document.getElementById("ibm").checked,
+			);
 			document.getElementById("converted").setAttribute("class", "completed");
 
 			// Extract file name from e.g. "for_translation_vivaldi-localisation_vivaldipot_de.po" to "de.json" for saving
