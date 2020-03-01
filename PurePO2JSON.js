@@ -1,5 +1,5 @@
 /*
- * PurePO2JSON v2.1.0
+ * PurePO2JSON v3.0.0
  * by André Zanghelini (An_dz)
  *
  * with previous contributions by Roland Reck (QuHno)
@@ -7,19 +7,150 @@
  */
 "use strict";
 
+/**
+ * @brief Convert special characters to their unicode number
+ *
+ * Used by the `replace` method to convert the characters to
+ * their unicode values between underlines.
+ */
 function specialChars(match, linefeed, special) {
-    // get rid of new lines
-    if (linefeed === "n") {
-        return "_10_";
-    }
-    if (linefeed === "r") {
-        return "_13_";
-    }
-    // convert special chars to their code
-    if (special !== undefined) {
-        return "_" + match.charCodeAt(0) + "_";
-    }
-    return match;
+	// get rid of new lines
+	if (linefeed === "n") {
+		return "_10_";
+	}
+	if (linefeed === "r") {
+		return "_13_";
+	}
+	// convert special chars to their code
+	if (special !== undefined) {
+		return "_" + match.charCodeAt(0) + "_";
+	}
+	return match;
+}
+
+/**
+ * @brief Class representing a message
+ *
+ * This class is a construction for one message, it holds all
+ * the data about the message, including original text, context
+ * and all possible translations (if there are plurals)
+ *
+ * @warning: The setters append and don't replace
+ */
+class Message {
+	/**
+	 * @brief Construct a new message
+	 *
+	 * @param lf {string} The linefeed for each line,
+	 * minimised JSON if left as an empty string
+	 */
+	constructor(lf, ibmi18n) {
+		this.linefeed = lf;
+		this.ibmi18n  = ibmi18n;
+		this.tab      = (lf === "" ? "" : "\t");
+		this.space    = (lf === "" ? "" : " ");
+		this.str      = [];
+		this.id       = "";
+		this.ctxt     = "";
+		this.lastUsed = null;
+	}
+	/**
+	 * @brief Set or amend msgid
+	 *
+	 * @param text {string} The text to set
+	 */
+	set msgid(text) {
+		this.id = text;
+		this.lastUsed = this.id;
+	}
+	get msgid() {
+		return this.id;
+	}
+	/**
+	 * @brief Set the context
+	 *
+	 * @param context {string} The text to set
+	 */
+	set msgctxt(context) {
+		this.ctxt = context;
+		this.lastUsed = this.ctxt;
+	}
+	get msgctxt() {
+		return this.ctxt;
+	}
+	/**
+	 * @brief Set or amend msgid
+	 *
+	 * @param string {string} The text to set
+	 */
+	set msgstr(string) {
+		const index = this.str.push(string) - 1;
+		this.lastUsed = this.str[index];
+	}
+	get msgstr() {
+		return this.str;
+	}
+	/**
+	 * @brief Appends text to the last defined property
+	 *
+	 * @param string {string} The text to append
+	 */
+	set amend(string) {
+		this.lastUsed += string;
+	}
+	/**
+	 * @brief Increase string to safe length if enabled
+	 *
+	 * Applies the IBM algorithm that increases the length of the
+	 * string to test screen space in multiple languages.
+	 *
+	 * @param string {string} the text to apply IBM algorithm
+	 *
+	 * @return {string} String with increase length or same string
+	 */
+	getIBM(string) {
+		if (this.ibmi18n !== true) {
+			return string;
+		}
+
+		const length = string.length;
+
+		return `${string}${"-".repeat(
+			(3 / Math.log(length) + 0.7) * length - length
+		)}`;
+	}
+	/**
+	 * @brief Return a constructed JSON as a string
+	 *
+	 * @return {string} JSON of the message
+	 */
+	toString() {
+		const lf = this.linefeed;
+		const tab = this.tab;
+		const space = this.space;
+
+		const msgctxt = (this.msgctxt.length > 0 ? "\x04" : "");
+
+		const id = `${this.msgctxt}${msgctxt}${this.msgid}`.replace(
+			/\\(n|r)|([^a-z0-9])/g, specialChars
+		);
+
+		const json = [];
+
+		this.msgstr.forEach((string, index) => {
+			if (string.length === 0) {
+				string = this.msgid;
+			}
+
+			json.push(
+				`${id}${index}:${space}{${lf}` +
+					`${tab}"message":${space}"${this.getIBM(string)}"${lf}` +
+				"}"
+			);
+		});
+
+		return json.join(`,${lf}`);
+	}
 }
 
 /**
@@ -44,186 +175,84 @@ function specialChars(match, linefeed, special) {
  * f = (e - length) <-- This returns the amount of chars to add
  */
 function purePO2JSON(file, minify, ibmi18n) {
-    // Check line feed
-    let lf = file.match(/(\r\n)|(\n)|(\r)/);
-    lf = lf[1] || lf[2] || lf[3];
-    file = file.split(lf);
+	// Check line feed
+	const linefeed = file.match(/\r\n?|\n/)[0];
+	file = file.split(linefeed);
 
-    let space = " ";
-    let tab = "\t";
-    if (minify === true) {
-        lf = "";
-        space = "";
-        tab = "";
-    }
+	const lf = (minify ? "" : linefeed);
 
-    let msgid = false;
-    let msgstr = false;
-    let msgctxt = "";
-    let msg;
-    let ignoreline = null;
-    let empty = false;
-    const newFile = ["{"];
+	const messages = [];
+	let ignoreline = true;
 
-    file.forEach(function choose(line) {
-        // if the line has any text and does not begin with '#' (comment)
-        if (line.length > 0 && line.charCodeAt(0) !== 35) {
-            /* RegExp IDs and their meanings:
-             0: msg*
-             1: anything after msg
-             2: msgid
-             3: msgid_plural
-             4: msgstr
-             5: msgstr[]
-             6: number in msgstr[#]
-             7: msgctxt
-             8: the text
-             */
-            msg = line.match(/msg((id)(_plural)?|(str)(\[(\d)\])?|(ctxt))\s"(.*)"$/);
+	file.forEach(function choose(line) {
+		// if the line has no text or begins with '#' (comment)
+		if (line.length === 0 || line[0] === "#") {
+			return;
+		}
 
-            // First msgid found, start ignoring all lines
-            if (ignoreline === null && msg[2] !== undefined) {
-                ignoreline = true;
-                return;
-            }
-            // Ignore all lines while msg* is not match
-            if (ignoreline === true && (msg === null || msg[4])) {
-                return;
-            }
-            ignoreline = false;
+		const msg = line.match(
+			/^msg(?:(id)(_plural)?|(str)(?:\[\d\])?|(ctxt))\s"(.*)"$/
+		);
+		const currentMessage = messages[messages.length - 1];
 
-            // Just append strings to either msgid or msgstr
-            if (msg === null) {
-                empty = false;
-                msg = line.substring(1, line.length - 1);
-                if (msgid !== false) {
-                    msgid += msg;
-                } else {
-                    msgstr += msg;
-                }
-                return;
-            }
+		// line is continuation of a string
+		if (msg === null) {
+			// only amend if there's anything to amend
+			if (currentMessage !== undefined) {
+				currentMessage.amend = line.substring(1, line.length - 1);
+			}
 
-            // msgid_plural
-            if (msg[3]) {
-                return;
-            }
+			return;
+		}
 
-            // msgstr[*]
-            if (msg[6]) {
-                if (msg[8].length < 1) {
-                    empty = true;
-                }
+		const msgid        = Boolean(msg[1]);
+		const msgid_plural = Boolean(msg[2]);
+		const msgstr       = Boolean(msg[3]);
+		const msgctxt      = Boolean(msg[4]);
+		const text         = msg[5];
 
-                if (msg[6] === "0") {
-                    // commit msgid
-                    if (msgctxt.length > 0) {
-                        // context and id are separated by _4_
-                        msgctxt = msgctxt.replace(/\\(n|r)|([^a-z0-9])/g, specialChars) + "_4_";
-                    }
-                    // We change the special characters
-                    msgid = msgid.replace(/\\(n|r)|([^a-z0-9])/g, specialChars);
-                    msgctxt += msgid;
-                }
+		// ignore the first msgid/msgstr pair
+		if (ignoreline === true) {
+			// stop ignoring after the first msgid
+			if (msgstr === true) {
+				ignoreline = false;
+			}
 
-                line = "\"" + msgctxt + msg[6] + "\":" + space + "{";
+			return;
+		}
 
-                if (msg[6] !== "0") {
-                    if (ibmi18n === true) {
-                        msgstr = `${msgstr}${"-".repeat((3 / Math.log(msgstr.length) + 0.7) * msgstr.length - msgstr.length)}`;
-                    }
+		if (msgctxt) {
+			const length = messages.push(new Message(lf, ibmi18n));
+			messages[length - 1].msgctxt = text;
+			return;
+		}
 
-                    line = tab + "\"message\":" + space + "\"" + msgstr.replace(/\\n/g, "\n") + "\"" + lf + "}," + lf + line;
-                }
+		if (msgid) {
+			if (
+				currentMessage === undefined     ||
+				currentMessage.msgid.length > 0  ||
+				currentMessage.msgctxt.length === 0
+			) {
+				const length = messages.push(new Message(lf, ibmi18n));
+				messages[length - 1].msgid = text;
+				return;
+			}
 
-                msgstr = msg[8];
-            }
+			currentMessage.msgid = text;
+			return;
+		}
 
-            // msgstr
-            else if (msg[4]) {
-                if (msg[8].length < 1) {
-                    empty = true;
-                }
+		if (msgid_plural) {
+			return;
+		}
 
-                // commit msgid
-                if (msgctxt.length > 0) {
-                    // context and id are separated by _4_
-                    msgctxt = msgctxt.replace(/\\(n|r)|([^a-z0-9])/g, specialChars) + "_4_";
-                }
-                // We change the special characters
-                msgid = msgid.replace(/\\(n|r)|([^a-z0-9])/g, specialChars);
-                msgctxt += msgid;
+		if (msgstr) {
+			currentMessage.msgstr = text;
+		}
+	});
 
-                line = "\"" + msgctxt + "0\":" + space + "{";
-                msgstr = msg[8];
-                msgid = false;
-                msgctxt = "";
-            }
+	console.info("All done, just copy the content of the page now. ;D");
 
-            // msgid
-            else if (msg[2]) {
-                msgid = msg[8];
-                if (msgstr !== false) {
-                    if (empty === true) {
-                        newFile.pop();
-                        msgstr = false;
-                        empty = false;
-                        return;
-                    }
-                    // commit msgstr
-                    // Convert literal \n to real line breaks in msgstr
-                    if (ibmi18n === true) {
-                        msgstr = `${msgstr}${"-".repeat((3 / Math.log(msgstr.length) + 0.7) * msgstr.length - msgstr.length)}`;
-                    }
-
-                    line = tab + "\"message\":" + space + "\"" + msgstr.replace(/\\n/g, "\n") + "\"" + lf + "},";
-                    msgstr = false;
-                    msgctxt = "";
-                } else {
-                    return;
-                }
-            }
-
-            // msgctxt
-            else if (msg[7]) {
-                msgctxt = msg[8];
-                // In case it's the first one
-                if (msgstr !== false) {
-                    if (empty === true) {
-                        newFile.pop();
-                        msgstr = false;
-                        empty = false;
-                        return;
-                    }
-                    // commit msgstr
-                    // Convert literal \n to real line breaks in msgstr
-                    if (ibmi18n === true) {
-                        msgstr = `${msgstr}${"-".repeat((3 / Math.log(msgstr.length) + 0.7) * msgstr.length - msgstr.length)}`;
-                    }
-
-                    line = tab + "\"message\":" + space + "\"" + msgstr.replace(/\\n/g, "\n") + "\"" + lf + "},";
-                    msgstr = false;
-                } else {
-                    return;
-                }
-            }
-
-            // add line to file
-            newFile.push(line);
-        }
-    });
-
-    // The last one is not commited
-    if (msgstr) {
-        newFile.push(tab + "\"message\":" + space + "\"" + msgstr.replace(/\\n/g, "\n") + "\"" + lf + "}");
-    } else {
-        const l = newFile.length - 1;
-        newFile[l] = newFile[l].substr(0, newFile[l].length - 1);
-    }
-    newFile.push("}");
-
-    console.info("All done, just copy the content of the page now. ;D");
-
-    // Join all lines again with the original line feed
-    return newFile.join(lf);
+	// Join all lines again with the original line feed
+	return `{${lf}${messages.join(`,${lf}`)}${lf}}`;
 }
