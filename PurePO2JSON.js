@@ -204,6 +204,14 @@ function purePO2JSON(file, minify, ibmi18n, showReview) {
 		}
 
 		if (line.length === 0 || line[0] === "#") {
+			if (line[1] === "~") {
+				const currentMessage = messages[messages.length - 1];
+
+				if (currentMessage.msgid.length === 0) {
+					messages.pop();
+				}
+			}
+
 			return;
 		}
 
@@ -240,18 +248,17 @@ function purePO2JSON(file, minify, ibmi18n, showReview) {
 
 		if (msgctxt) {
 			if (
-				currentMessage !== undefined      &&
-				currentMessage.reviewed === false &&
-				currentMessage.msgid.length === 0
+				currentMessage === undefined ||
+				currentMessage.msgid.length > 0
 			) {
-				currentMessage.msgctxt = text;
+				const length = messages.push(
+					new Message(lf, ibmi18n, showReview)
+				);
+				messages[length - 1].msgctxt = text;
 				return;
 			}
 
-			const length = messages.push(
-				new Message(lf, ibmi18n, showReview)
-			);
-			messages[length - 1].msgctxt = text;
+			currentMessage.msgctxt = text;
 			return;
 		}
 
@@ -261,9 +268,8 @@ function purePO2JSON(file, minify, ibmi18n, showReview) {
 
 		if (msgid) {
 			if (
-				currentMessage === undefined     ||
-				currentMessage.msgid.length > 0  ||
-				currentMessage.msgctxt.length === 0
+				currentMessage === undefined ||
+				currentMessage.msgid.length > 0
 			) {
 				const length = messages.push(
 					new Message(lf, ibmi18n, showReview)
