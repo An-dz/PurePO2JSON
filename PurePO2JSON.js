@@ -1,5 +1,5 @@
 /*
- * PurePO2JSON v3.0.1
+ * PurePO2JSON v3.1.0
  * by André Zanghelini (An_dz)
  *
  * with previous contributions by Roland Reck (QuHno)
@@ -41,18 +41,22 @@ class Message {
 	/**
 	 * @brief Construct a new message
 	 *
-	 * @param lf {string} The linefeed for each line,
+	 * @param lf         {string}  The linefeed for each line,
 	 * minimised JSON if left as an empty string
+	 * @param ibmi18n    {boolean} Expand string by IBM guideline
+	 * @param showReview {boolean} Add # around strings marked for review
 	 */
-	constructor(lf, ibmi18n) {
+	constructor(lf, ibmi18n, showReview) {
 		this.linefeed = lf;
 		this.ibmi18n  = ibmi18n;
+		this.toReview = showReview;
 		this.tab      = (lf === "" ? "" : "\t");
 		this.space    = (lf === "" ? "" : " ");
 		this.str      = [];
 		this.id       = "";
 		this.ctxt     = "";
 		this.lastUsed = null;
+		this.reviewed = true;
 	}
 	/**
 	 * @brief Set or amend msgid
@@ -142,6 +146,10 @@ class Message {
 				string = this.msgid;
 			}
 
+			if (this.toReview === true && this.reviewed === false) {
+				string = `# ${string} #`;
+			}
+
 			json.push(
 				`"${id}${index}":${space}{${lf}` +
 					`${tab}"message":${space}"${this.getIBM(string)}"${lf}` +
@@ -159,9 +167,10 @@ class Message {
  * Gets a PO file as a `String` and returns a `String`
  * with the contents of a JSON file.
  *
- * @param[in] file    {String}  The PO file to convert
- * @param[in] minify  {Boolean} If the result must be minified (optional)
- * @param[in] ibmi18n {Boolean} If the result expands strings to match W3C
+ * @param[in] file       {String}  The PO file to convert
+ * @param[in] minify     {Boolean} If the result must be minified (optional)
+ * @param[in] showReview {boolean} Add # around strings marked for review
+ * @param[in] ibmi18n    {Boolean} If the result expands strings to match W3C
  * Internationalisation guideline. @see https://www.w3.org/International/articles/article-text-size
  *
  * @return {String} JSON file
@@ -174,7 +183,7 @@ class Message {
  * e = (p * length) <-- This returns the final expanded length  
  * f = (e - length) <-- This returns the amount of chars to add
  */
-function purePO2JSON(file, minify, ibmi18n) {
+function purePO2JSON(file, minify, ibmi18n, showReview) {
 	// Check line feed
 	const linefeed = file.match(/\r\n?|\n/)[0];
 	file = file.split(linefeed);
@@ -186,6 +195,14 @@ function purePO2JSON(file, minify, ibmi18n) {
 
 	file.forEach(function choose(line) {
 		// if the line has no text or begins with '#' (comment)
+		if (line === "#, fuzzy") {
+			const length = messages.push(
+				new Message(lf, ibmi18n, showReview)
+			);
+			messages[length - 1].reviewed = false;
+			return;
+		}
+
 		if (line.length === 0 || line[0] === "#") {
 			return;
 		}
@@ -222,7 +239,18 @@ function purePO2JSON(file, minify, ibmi18n) {
 		}
 
 		if (msgctxt) {
-			const length = messages.push(new Message(lf, ibmi18n));
+			if (
+				currentMessage !== undefined      &&
+				currentMessage.reviewed === false &&
+				currentMessage.msgid.length === 0
+			) {
+				currentMessage.msgctxt = text;
+				return;
+			}
+
+			const length = messages.push(
+				new Message(lf, ibmi18n, showReview)
+			);
 			messages[length - 1].msgctxt = text;
 			return;
 		}
@@ -237,7 +265,9 @@ function purePO2JSON(file, minify, ibmi18n) {
 				currentMessage.msgid.length > 0  ||
 				currentMessage.msgctxt.length === 0
 			) {
-				const length = messages.push(new Message(lf, ibmi18n));
+				const length = messages.push(
+					new Message(lf, ibmi18n, showReview)
+				);
 				messages[length - 1].msgid = text;
 				return;
 			}
