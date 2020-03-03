@@ -1,5 +1,5 @@
 /*
- * PurePO2JSON v3.0.0
+ * PurePO2JSON v3.0.1
  * by André Zanghelini (An_dz)
  *
  * with previous contributions by Roland Reck (QuHno)
