@@ -227,6 +227,10 @@ function purePO2JSON(file, minify, ibmi18n) {
 			return;
 		}
 
+		if (msgid_plural) {
+			return;
+		}
+
 		if (msgid) {
 			if (
 				currentMessage === undefined     ||
@@ -239,10 +243,6 @@ function purePO2JSON(file, minify, ibmi18n) {
 			}
 
 			currentMessage.msgid = text;
-			return;
-		}
-
-		if (msgid_plural) {
 			return;
 		}
 
