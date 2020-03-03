@@ -22,6 +22,7 @@
 		</div>
 		<div>
 			<span title="Generate an optimised but less human readable file"><input type="checkbox" checked id="minify"><label for="minify">Minify file</label></span>
+			<span title="Adds '#' around the strings that are marked for reviewing for easier finding"><input type="checkbox" id="review"><label for="review">Mark needs review</label></span>
 			<span title="Expand strings according to IBM guidelines (see explanation below)"><input type="checkbox" id="ibm"><label for="ibm">W3C/IBM safe size</label></span>
 		</div>
 		<p id="loadedFile"></p>
@@ -61,7 +62,7 @@
 		<h3>W3C/IBM Safe Size</h3>
 		<p>W3C <a href="https://www.w3.org/International/articles/article-text-size">has a document</a> describing guidelines on how to create an UI that works for different languages.</p>
 		<p>In this document they point to a guideline table created by IBM showing the expected character expansion from English sentences/words to cover the maximum amount of languages.</p>
-		<p>By checking the checkbox above the translation strings will be expanded with hyphens to matching the expansions on the IBM table.</p>
+		<p>By checking the checkbox above the translation strings will be expanded with hyphens for matching the expansions on the IBM table.</p>
 		<h3>Thanks</h3>
 		<p>Roland Reck (QuHno) for implementing the functions for a webpage and suggestion and initial algorithm of the W3C/IBM guideline</p>
 		<p>Cqoicebordel for adding instructions and hosting a copy</p>
@@ -121,6 +122,7 @@ function handleFileSelect() {
 				evt.target.result,
 				document.getElementById("minify").checked,
 				document.getElementById("ibm").checked,
+				document.getElementById("review").checked,
 			);
 			document.getElementById("converted").classList = "completed";
 
