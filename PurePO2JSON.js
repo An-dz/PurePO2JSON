@@ -1,5 +1,5 @@
 /*
- * PurePO2JSON v3.0.0
+ * PurePO2JSON v3.0.1
  * by André Zanghelini (An_dz)
  *
  * with previous contributions by Roland Reck (QuHno)
@@ -143,7 +143,7 @@ class Message {
 			}
 
 			json.push(
-				`${id}${index}:${space}{${lf}` +
+				`"${id}${index}":${space}{${lf}` +
 					`${tab}"message":${space}"${this.getIBM(string)}"${lf}` +
 				"}"
 			);
@@ -227,6 +227,10 @@ function purePO2JSON(file, minify, ibmi18n) {
 			return;
 		}
 
+		if (msgid_plural) {
+			return;
+		}
+
 		if (msgid) {
 			if (
 				currentMessage === undefined     ||
@@ -239,10 +243,6 @@ function purePO2JSON(file, minify, ibmi18n) {
 			}
 
 			currentMessage.msgid = text;
-			return;
-		}
-
-		if (msgid_plural) {
 			return;
 		}
 
