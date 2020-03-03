@@ -143,7 +143,7 @@ class Message {
 			}
 
 			json.push(
-				`${id}${index}:${space}{${lf}` +
+				`"${id}${index}":${space}{${lf}` +
 					`${tab}"message":${space}"${this.getIBM(string)}"${lf}` +
 				"}"
 			);
