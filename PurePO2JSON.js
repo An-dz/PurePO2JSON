@@ -65,7 +65,7 @@ class Message {
 	 */
 	set msgid(text) {
 		this.id = text;
-		this.lastUsed = this.id;
+		this.lastUsed = "id";
 	}
 	get msgid() {
 		return this.id;
@@ -77,7 +77,7 @@ class Message {
 	 */
 	set msgctxt(context) {
 		this.ctxt = context;
-		this.lastUsed = this.ctxt;
+		this.lastUsed = "ctxt";
 	}
 	get msgctxt() {
 		return this.ctxt;
@@ -88,8 +88,8 @@ class Message {
 	 * @param string {string} The text to set
 	 */
 	set msgstr(string) {
-		const index = this.str.push(string) - 1;
-		this.lastUsed = this.str[index];
+		this.str.push(string);
+		this.lastUsed = "str";
 	}
 	get msgstr() {
 		return this.str;
@@ -100,7 +100,12 @@ class Message {
 	 * @param string {string} The text to append
 	 */
 	set amend(string) {
-		this.lastUsed += string;
+		if (this.lastUsed === "str") {
+			this.str[this.str.length - 1] += string;
+			return;
+		}
+
+		this[this.lastUsed] += string;
 	}
 	/**
 	 * @brief Increase string to safe length if enabled
@@ -144,7 +149,7 @@ class Message {
 		this.msgstr.forEach((string, index) => {
 			if (string.length === 0) {
 				string = this.msgid;
-				this.reviewed === false;
+				this.reviewed = false;
 			}
 
 			if (this.toReview === true && this.reviewed === false) {
