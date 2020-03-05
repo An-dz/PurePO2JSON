@@ -144,7 +144,7 @@ class Message {
 		this.msgstr.forEach((string, index) => {
 			if (string.length === 0) {
 				string = this.msgid;
-				this.reviewed === false;
+				this.reviewed = false;
 			}
 
 			if (this.toReview === true && this.reviewed === false) {
